@@ -1,0 +1,233 @@
+﻿<Application x:Class="IIoTHub.App.Wpf.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:taskbar="http://www.hardcodet.net/taskbar"
+             xmlns:viewmodels="clr-namespace:IIoTHub.App.Wpf.ViewModels.MainWindow"
+             ShutdownMode="OnExplicitShutdown">
+
+    <Application.Resources>
+
+        <!-- ===================================================== -->
+        <!-- System Tray (NotifyIcon)                             -->
+        <!-- ===================================================== -->
+
+        <!-- 系統匣右鍵選單 -->
+        <ContextMenu x:Key="SystemTrayMenu" x:Shared="false">
+            <MenuItem Header="顯示視窗"
+                      Command="{Binding ShowWindowCommand}" />
+            <MenuItem Header="隱藏視窗"
+                      Command="{Binding HideWindowCommand}" />
+            <Separator />
+            <MenuItem Header="關閉應用程式"
+                      Command="{Binding ExitApplicationCommand}" />
+        </ContextMenu>
+
+        <!-- 系統匣 Icon 定義 -->
+        <taskbar:TaskbarIcon x:Key="Taskbar"
+                             IconSource="/Resources/App.ico"
+                             ToolTipText="IIoTHub"
+                             DoubleClickCommand="{Binding ShowWindowCommand}"
+                             ContextMenu="{StaticResource SystemTrayMenu}">
+            <taskbar:TaskbarIcon.DataContext>
+                <viewmodels:TaskbarIconViewModel />
+            </taskbar:TaskbarIcon.DataContext>
+        </taskbar:TaskbarIcon>
+
+
+        <!-- ===================================================== -->
+        <!-- Global Theme / Colors                                -->
+        <!-- ===================================================== -->
+
+        <SolidColorBrush x:Key="PrimaryBrush" Color="#4169E1" />
+        <SolidColorBrush x:Key="BorderLightBrush" Color="#E5E5E5" />
+        <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#FAFAFA" />
+
+
+        <!-- ===================================================== -->
+        <!-- Global Control Styles                                 -->
+        <!-- ===================================================== -->
+
+        <!-- 現代化 Button 樣式 -->
+        <Style x:Key="ModernButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6"
+                                Padding="6,2"
+                                Margin="4">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <!-- 滑鼠移入 -->
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.9" />
+                            </Trigger>
+                            <!-- 停用狀態 -->
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+
+        <!-- 現代化 TextBox 樣式 -->
+        <Style x:Key="ModernTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border CornerRadius="6"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Margin="2"
+                                          VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+
+        <!-- 現代化 ComboBox 樣式 -->
+        <Style x:Key="ModernComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <!-- 外層邊框 -->
+                            <Border x:Name="Border"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6" />
+                            <!-- 內容與下拉按鈕 -->
+                            <Grid Margin="6,0">
+                                <ContentPresenter x:Name="ContentSite"
+                                                  Margin="6,0,30,0"
+                                                  VerticalAlignment="Center"
+                                                  Content="{TemplateBinding SelectionBoxItem}"
+                                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                  RecognizesAccessKey="True" />
+                                <ToggleButton x:Name="ToggleButton"
+                                              Width="24"
+                                              Height="24"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center"
+                                              Background="Transparent"
+                                              BorderThickness="0"
+                                              Cursor="Hand"
+                                              Focusable="False"
+                                              IsChecked="{Binding IsDropDownOpen,
+                                                                  Mode=TwoWay,
+                                                                  RelativeSource={RelativeSource TemplatedParent}}">
+                                    <Path Data="M 0 0 L 4 4 L 8 0 Z"
+                                          Width="8"
+                                          Height="5"
+                                          Fill="#555"
+                                          Stretch="Uniform"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                                </ToggleButton>
+                            </Grid>
+
+                            <!-- 下拉清單 -->
+                            <Popup x:Name="PART_Popup"
+                                   Placement="Bottom"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Slide">
+                                <Border Background="White"
+                                        BorderBrush="{StaticResource BorderLightBrush}"
+                                        BorderThickness="1"
+                                        Margin="0,6,0,0"
+                                        SnapsToDevicePixels="True"
+                                        MinWidth="{Binding ActualWidth,
+                                                           RelativeSource={RelativeSource TemplatedParent}}">
+                                    <ScrollViewer MaxHeight="200">
+                                        <StackPanel IsItemsHost="True"
+                                                    KeyboardNavigation.DirectionalNavigation="Contained" />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+
+                        <!-- 狀態觸發 -->
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border"
+                                        Property="BorderBrush"
+                                        Value="#AAA" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+                                <Setter TargetName="Border" Property="BorderThickness" Value="1.5" />
+                                <Setter TargetName="Border" Property="Background" Value="#F3F9FF" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Border" Property="Opacity" Value="0.6" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+
+        <!-- ===================================================== -->
+        <!-- Layout / Container Styles                             -->
+        <!-- ===================================================== -->
+
+        <Style x:Key="RowCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource PanelBackgroundBrush}" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Style.Triggers>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+                    <Setter Property="Background" Value="#F3F9FF" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+
+        <!-- ===================================================== -->
+        <!-- Effects                                               -->
+        <!-- ===================================================== -->
+
+        <DropShadowEffect x:Key="DropShadowEffectResource"
+                          Color="#888"
+                          ShadowDepth="2"
+                          BlurRadius="6" />
+
+    </Application.Resources>
+</Application>

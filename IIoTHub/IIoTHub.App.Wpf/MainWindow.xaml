@@ -1,0 +1,27 @@
+﻿<Window x:Class="IIoTHub.App.Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Icon="pack://application:,,,/Resources/App.ico"
+        Title="IIoTHub"
+        WindowState="Maximized"
+        ResizeMode="NoResize">
+    <DockPanel>
+
+        <!-- 左側導航列 -->
+        <StackPanel DockPanel.Dock="Left"
+                    Width="200"
+                    Background="#DCE3F2">
+            <Button Content="儀表板"
+                    Margin="10"
+                    Command="{Binding ShowDashboardCommand}"
+                    Style="{StaticResource ModernButtonStyle}"/>
+        </StackPanel>
+
+        <!-- 主內容區域 -->
+        <ContentControl Content="{Binding CurrentView}" />
+
+    </DockPanel>
+</Window>

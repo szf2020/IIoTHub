@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Resources\App.ico" />
+    <None Remove="Resources\DeviceSettingWizardPage1View\DefaultImage.png" />
+    <None Remove="Resources\DeviceSettingWizardPage1View\MachineIcon.png" />
+    <None Remove="Resources\DeviceSettingWizardPage1View\MagazineIcon.png" />
+    <None Remove="Resources\DeviceSettingWizardPage1View\RobotIcon.png" />
+    <None Remove="Views\DeviceSettingWizardDialog\DeviceSettingWizardCommonStyles.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IIoTHub.Application\IIoTHub.Application.csproj" />
+    <ProjectReference Include="..\IIoTHub.Domain\IIoTHub.Domain.csproj" />
+    <ProjectReference Include="..\IIoTHub.Infrastructure\IIoTHub.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\App.ico" />
+    <Resource Include="Resources\DeviceSettingWizardPage1View\DefaultImage.png" />
+    <Resource Include="Resources\DeviceSettingWizardPage1View\MachineIcon.png" />
+    <Resource Include="Resources\DeviceSettingWizardPage1View\MagazineIcon.png" />
+    <Resource Include="Resources\DeviceSettingWizardPage1View\RobotIcon.png" />
+  </ItemGroup>
+
+</Project>
