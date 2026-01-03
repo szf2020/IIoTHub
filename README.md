@@ -1,1 +1,121 @@
-# IIoTHub
+# <img width="32" height="32" src="https://github.com/user-attachments/assets/07d946a6-a868-4683-9d0d-1ec349290672" /> 工業物聯網樞紐 ![GitHub watchers](https://img.shields.io/github/watchers/FongYuanChen/IIoTHub) ![GitHub forks](https://img.shields.io/github/forks/FongYuanChen/IIoTHub) ![GitHub Repo stars](https://img.shields.io/github/stars/FongYuanChen/IIoTHub) ![GitHub last commit](https://img.shields.io/github/last-commit/FongYuanChen/IIoTHub) ![GitHub License](https://img.shields.io/github/license/FongYuanChen/IIoTHub)
+
+**工廠設備監控與資料整合中樞！**
+
+> 隨著工廠自動化程度提升，設備種類與數量持續的增加，不同設備、通訊方式與資料格式的整合，成為現場系統建置與維護上的一大挑戰。缺乏統一的管理核心，往往導致系統耦合度高、擴充困難，增加後續維運成本。
+
+> 本專案以「可擴充的設備驅動架構」為核心，打造一個工業物聯網樞紐，集中管理設備狀態、運行紀錄與即時資料。在此架構下，新增或調整設備僅需實作對應的驅動模組，即可無縫整合至現有系統，使整體平台能隨著設備種類與工廠需求的變化持續擴充。
+
+
+## 🎨 功能特色
+
+- **設備監控總覽**：統一掌握工廠內多種設備的狀態、運行紀錄與即時資料，提供完整的監控視圖。
+- **可擴充驅動架構**：設備通訊邏輯以模組化驅動實作，新增或調整設備僅需擴充對應驅動，無需修改核心系統。
+- **多設備、多協議支援**：整合不同通訊協議與設備類型，靈活應對工廠需求。
+
+
+## 🔗 數據來源
+
+- **通訊協議支援**：支援 Modbus、OPC UA、MQTT 等多種通用工業協議。
+- **專用SDK整合**：整合 Focas（Fanuc CNC）、FCSB1224W000（Mitsubishi CNC）、MML（Makino CNC）等多種專用 SDK。
+- **外部系統接入**：可接入 MES、ERP 或其他工廠資訊系統，擴展資料來源與管理能力。
+
+
+## 🛠 核心技術
+
+- **語言框架**：基於 C#、.NET 8、WPF，採 MVVM 架構設計。
+- **依賴注入與服務管理**：使用 [Microsoft.Extensions.DependencyInjection](https://github.com/dotnet/runtime) 與 [Microsoft.Extensions.Hosting](https://github.com/dotnet/runtime) 管理服務生命週期與模組化驅動架構。
+- **設定管理與持久化**：使用 [Newtonsoft.Json](https://github.com/JamesNK/Newtonsoft.Json) 進行資料序列化與設定存取。
+- **資料管理與持久化**：使用 [Microsoft.Data.Sqlite](https://github.com/dotnet/dotnet) 儲存歷史運行紀錄。
+- **通知區圖示與操作**：使用 [Hardcodet.NotifyIcon.Wpf](https://github.com/hardcodet/wpf-notifyicon) 建立通知區圖示及右鍵選單，提供快捷操作。
+
+
+## 🧩 擴充驅動指南
+
+1. 在 `IIoTHub.Infrastructure` 專案的 `Drivers` 資料夾建立新驅動類別。
+2. 根據設備類型實作對應介面：
+   - 機台驅動：實作 `IMachineDriver`
+   - 料庫驅動：實作 `IMagazineDriver`
+   - 機械手臂驅動：實作 `IRobotDriver`
+3. 驅動連線設定
+   - 使用 `[ConnectionSetting]` 屬性標記驅動中的連線相關屬性，這些屬性會在系統 UI 顯示給使用者設定。
+   - 範例：
+     ```csharp
+     [ConnectionSetting("設置一", "測試顯示用，無需設置", "-")]
+     public string ConnectionSettingTest1 { get; set; }
+     ```
+   - 參數說明：
+     1. 第一個字串：顯示名稱
+     2. 第二個字串：說明文字
+     3. 第三個字串：預設值
+
+4. 驅動變數設定
+   - 使用 `[VariableSettingAttribute]` 標記驅動中可調整的運行參數，讓使用者可以在系統 UI 中修改。
+   - 範例：
+     ```csharp
+     [VariableSettingAttribute("快照變更間隔", "單位: 秒", "60")]
+     public int SnapshotChangeInterval { get; set; } = 60;
+     ```
+   - 參數說明：
+     1. 第一個字串：參數名稱
+     2. 第二個字串：說明文字
+     3. 第三個字串：預設值
+
+5. 範例驅動（DemoDriver)
+   ```csharp
+   public class DemoDriver : IMachineDriver
+   {
+       public string DisplayName => "DEMO 專用驅動器";
+
+       [ConnectionSetting("設置一", "測試顯示用，無需設置", "-")]
+       public string ConnectionSettingTest1 { get; set; }
+
+       [VariableSettingAttribute("快照變更間隔", "單位: 秒", "60")]
+       public int SnapshotChangeInterval { get; set; } = 60;
+
+       private readonly Random _random = new();
+       private readonly Dictionary<Guid, DeviceRunStatus> _currentStatus = new();
+       private readonly Dictionary<Guid, DateTime> _lastUpdate = new();
+
+       public DeviceSnapshot GetSnapshot(DeviceSetting deviceSetting)
+       {
+           var variableSetting = deviceSetting.DriverSetting.VariableSettings
+                                     .FirstOrDefault(v => v.Key == nameof(SnapshotChangeInterval));
+           var interval = int.TryParse(variableSetting?.Value, out int parsed) ? parsed : SnapshotChangeInterval;
+           var now = DateTime.Now;
+
+           if (!_lastUpdate.ContainsKey(deviceSetting.Id))
+           {
+               _lastUpdate[deviceSetting.Id] = now;
+               _currentStatus[deviceSetting.Id] = RandomStatus();
+           }
+           else if ((now - _lastUpdate[deviceSetting.Id]).TotalSeconds >= interval)
+           {
+               _currentStatus[deviceSetting.Id] = RandomStatus();
+               _lastUpdate[deviceSetting.Id] = now;
+           }
+
+           var status = _currentStatus[deviceSetting.Id];
+           return new DeviceSnapshot
+           {
+               DeviceId = deviceSetting.Id,
+               RunStatus = status
+           };
+       }
+
+       private DeviceRunStatus RandomStatus()
+       {
+           var values = Enum.GetValues(typeof(DeviceRunStatus));
+           return (DeviceRunStatus)values.GetValue(_random.Next(values.Length));
+       }
+   }
+
+
+## 🖥️ 操作演示
+
+https://github.com/user-attachments/assets/5c51bf94-e111-4b3c-8cd9-7b19fcc2e683
+
+
+## 📜 授權條款
+
+本專案採用 [MIT](https://github.com/FongYuanChen/IIoTHub/blob/main/LICENSE) 授權條款。歡迎自由使用、修改與分享！
