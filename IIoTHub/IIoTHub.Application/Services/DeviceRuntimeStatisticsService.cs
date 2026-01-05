@@ -1,9 +1,9 @@
-﻿using IIoTHub.Domain.Enums;
-using IIoTHub.Domain.Interfaces;
+﻿using IIoTHub.Application.Interfaces;
+using IIoTHub.Domain.Enums;
 using IIoTHub.Domain.Interfaces.Repositories;
 using IIoTHub.Domain.Models;
 
-namespace IIoTHub.Domain.Services
+namespace IIoTHub.Application.Services
 {
     public class DeviceRuntimeStatisticsService : IDeviceRuntimeStatisticsService
     {

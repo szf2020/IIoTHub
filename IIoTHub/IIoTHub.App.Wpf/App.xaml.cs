@@ -1,16 +1,8 @@
 ﻿using Hardcodet.Wpf.TaskbarNotification;
-using IIoTHub.App.Wpf.Interfaces;
+using IIoTHub.App.Wpf.DependencyInjections;
 using IIoTHub.App.Wpf.Services;
-using IIoTHub.App.Wpf.ViewModels.MainWindow;
-using IIoTHub.Application.Interfaces;
-using IIoTHub.Application.Services;
-using IIoTHub.Domain.Interfaces;
-using IIoTHub.Domain.Interfaces.DeviceDrivers;
-using IIoTHub.Domain.Interfaces.Repositories;
-using IIoTHub.Domain.Services;
-using IIoTHub.Infrastructure.DeviceDrivers;
-using IIoTHub.Infrastructure.DeviceDrivers.Providers;
-using IIoTHub.Infrastructure.Repositories;
+using IIoTHub.Application.DependencyInjections;
+using IIoTHub.Infrastructure.DependencyInjections;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Windows;
@@ -43,23 +35,9 @@ namespace IIoTHub.App.Wpf
                 _host = Host.CreateDefaultBuilder()
                             .ConfigureServices((context, services) =>
                             {
-                                services.AddSingleton<MainWindow>();
-                                services.AddSingleton<MainWindowViewModel>();
-                                services.AddSingleton<IMainWindowNavigationService, MainWindowNavigationService>();
-                                services.AddSingleton<IDialogService, DialogService>();
-                                services.AddSingleton<IImagePickerService, ImagePickerService>();
-                                services.AddSingleton<IDeviceSettingService, DeviceSettingService>();
-                                services.AddSingleton<IDeviceMonitorService, DeviceMonitorService>();
-                                services.AddSingleton<IDeviceDriverMetadataProvider, DeviceDriverMetadataProvider>();
-                                services.AddSingleton<IDeviceDriverProvider, DeviceDriverProvider>();
-                                services.AddSingleton<IMachineDriver, DemoDriver>();
-                                services.AddSingleton<IMachineDriver, FanucFocasLibraryDriver>();
-                                services.AddSingleton<IMagazineDriver, DemoDriver>();
-                                services.AddSingleton<IRobotDriver, DemoDriver>();
-                                services.AddSingleton<IDeviceSettingRepository, JsonDeviceSettingRepository>();
-                                services.AddSingleton<IDeviceMonitorStatusRepository, JsonDeviceMonitorStatusRepository>();
-                                services.AddSingleton<IDeviceRuntimeRepository, SqliteDeviceRuntimeRepository>();
-                                services.AddSingleton<IDeviceRuntimeStatisticsService, DeviceRuntimeStatisticsService>();
+                                services.AddWpf();
+                                services.AddApplication();
+                                services.AddInfrastructure();
                             })
                             .Build();
 

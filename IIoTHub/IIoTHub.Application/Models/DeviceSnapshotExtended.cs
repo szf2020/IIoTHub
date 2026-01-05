@@ -1,12 +1,14 @@
-﻿namespace IIoTHub.Application.Models
+﻿using IIoTHub.Domain.Models;
+
+namespace IIoTHub.Application.Models
 {
     /// <summary>
     /// 擴充設備快照
     /// </summary>
-    public class DeviceSnapshot : Domain.Models.DeviceSnapshot
+    public class DeviceSnapshotExtended : DeviceSnapshot
     {
-        public DeviceSnapshot(Domain.Models.DeviceSnapshot snapshot,
-                              double utilization)
+        public DeviceSnapshotExtended(DeviceSnapshot snapshot,
+                                      double utilization)
         {
             DeviceId = snapshot.DeviceId;
             RunStatus = snapshot.RunStatus;

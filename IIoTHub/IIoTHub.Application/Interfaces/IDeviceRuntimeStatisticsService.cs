@@ -1,6 +1,6 @@
 ﻿using IIoTHub.Domain.Models;
 
-namespace IIoTHub.Domain.Interfaces
+namespace IIoTHub.Application.Interfaces
 {
     /// <summary>
     /// 設備運轉統計服務介面

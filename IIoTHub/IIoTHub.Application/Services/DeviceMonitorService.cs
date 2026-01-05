@@ -1,7 +1,8 @@
 ﻿using IIoTHub.Application.Interfaces;
+using IIoTHub.Application.Models;
 using IIoTHub.Domain.Enums;
-using IIoTHub.Domain.Interfaces;
 using IIoTHub.Domain.Interfaces.Repositories;
+using IIoTHub.Domain.Models;
 using IIoTHub.Domain.Models.DeviceMonitor;
 
 namespace IIoTHub.Application.Services
@@ -14,7 +15,7 @@ namespace IIoTHub.Application.Services
         private readonly IDeviceRuntimeStatisticsService _deviceRuntimeStatisticsService;
 
         private readonly Dictionary<Guid, Timer> _timers = [];
-        private readonly Dictionary<Guid, List<Action<Application.Models.DeviceSnapshot>>> _subscribers = [];
+        private readonly Dictionary<Guid, List<Action<DeviceSnapshotExtended>>> _subscribers = [];
 
         public DeviceMonitorService(IDeviceMonitorStatusRepository deviceMonitorStatusRepository,
                                     IDeviceSettingRepository deviceSettingRepository,
@@ -53,7 +54,7 @@ namespace IIoTHub.Application.Services
                     // 通知所有訂閱者
                     foreach (var handler in _subscribers[id])
                     {
-                        handler(new Application.Models.DeviceSnapshot(snapshot, utilization));
+                        handler(new DeviceSnapshotExtended(snapshot, utilization));
                     }
                 }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
             }
@@ -79,12 +80,12 @@ namespace IIoTHub.Application.Services
             }
 
             // 通知所有訂閱者
-            var offlineSnapshotBase = new Domain.Models.DeviceSnapshot
+            var offlineSnapshotBase = new DeviceSnapshot
             {
                 DeviceId = id,
                 RunStatus = DeviceRunStatus.Offline
             };
-            var offlineSnapshot = new Application.Models.DeviceSnapshot(offlineSnapshotBase, 0);
+            var offlineSnapshot = new DeviceSnapshotExtended(offlineSnapshotBase, 0);
             foreach (var handler in _subscribers[id])
             {
                 handler(offlineSnapshot);
@@ -105,11 +106,11 @@ namespace IIoTHub.Application.Services
         /// <param name="id"></param>
         /// <param name="onSnapshot"></param>
         /// <returns></returns>
-        public IDisposable Subscribe(Guid id, Action<Application.Models.DeviceSnapshot> onSnapshot)
+        public IDisposable Subscribe(Guid id, Action<DeviceSnapshotExtended> onSnapshot)
         {
             if (!_subscribers.TryGetValue(id, out var subscribers))
             {
-                subscribers = new List<Action<Application.Models.DeviceSnapshot>>();
+                subscribers = new List<Action<DeviceSnapshotExtended>>();
                 _subscribers[id] = subscribers;
             }
 

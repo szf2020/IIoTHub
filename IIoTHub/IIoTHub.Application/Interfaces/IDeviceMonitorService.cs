@@ -1,4 +1,6 @@
-﻿namespace IIoTHub.Application.Interfaces
+﻿using IIoTHub.Application.Models;
+
+namespace IIoTHub.Application.Interfaces
 {
     /// <summary>
     /// 設備監控服務介面
@@ -31,6 +33,6 @@
         /// <param name="id"></param>
         /// <param name="onSnapshot"></param>
         /// <returns></returns>
-        IDisposable Subscribe(Guid id, Action<Application.Models.DeviceSnapshot> onSnapshot);
+        IDisposable Subscribe(Guid id, Action<DeviceSnapshotExtended> onSnapshot);
     }
 }
