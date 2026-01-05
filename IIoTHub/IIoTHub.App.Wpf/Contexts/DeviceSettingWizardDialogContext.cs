@@ -44,6 +44,15 @@ namespace IIoTHub.App.Wpf.Contexts
         public List<DeviceVariableSettingState> VariableSettings { get; set; }
 
         /// <summary>
+        /// 重置與 Driver 相關的設定內容
+        /// </summary>
+        public void ResetDeviceDriverSettings()
+        {
+            ConnectionSettings = null;
+            VariableSettings = null;
+        }
+
+        /// <summary>
         /// 建立一個新的上下文 (新增設備)
         /// </summary>
         public static DeviceSettingWizardDialogContext CreateNew()

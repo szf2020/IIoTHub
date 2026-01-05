@@ -83,8 +83,7 @@ namespace IIoTHub.App.Wpf.ViewModels.DeviceSettingWizardDialog
                 if (_context.DeviceCategoryType != value.Type)
                 {
                     _context.DeviceCategoryType = value.Type;
-                    _context.ConnectionSettings = null;
-                    _context.VariableSettings = null;
+                    _context.ResetDeviceDriverSettings();
                     OnPropertyChanged(nameof(SelectedDeviceCategory));
 
                     Load();
@@ -151,6 +150,7 @@ namespace IIoTHub.App.Wpf.ViewModels.DeviceSettingWizardDialog
                 if (_context.DeviceDriver != value)
                 {
                     _context.DeviceDriver = value;
+                    _context.ResetDeviceDriverSettings();
                     OnPropertyChanged(nameof(SelectedDeviceDriver));
                 }
             }
