@@ -13,6 +13,6 @@
         /// <summary>
         /// 導覽到 Dashboard 視圖
         /// </summary>
-        void NavigateToDashboard();
+        Task NavigateToDashboardAsync();
     }
 }

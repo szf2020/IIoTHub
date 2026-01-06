@@ -1,4 +1,5 @@
-﻿using IIoTHub.Domain.Models.DeviceSettings;
+﻿using IIoTHub.Application.Models;
+using IIoTHub.Domain.Models.DeviceSettings;
 
 namespace IIoTHub.Application.Interfaces
 {
@@ -10,7 +11,7 @@ namespace IIoTHub.Application.Interfaces
         /// <summary>
         /// 設備設定變更事件
         /// </summary>
-        event EventHandler DeviceSettingChanged;
+        event EventHandler<DeviceSettingChangedEventArgs> DeviceSettingChanged;
 
         /// <summary>
         /// 新增設備設定

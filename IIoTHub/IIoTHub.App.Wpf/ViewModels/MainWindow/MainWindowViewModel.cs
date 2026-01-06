@@ -24,9 +24,9 @@ namespace IIoTHub.App.Wpf.ViewModels.MainWindow
         /// <summary>
         /// 導航到 Dashboard 的命令
         /// </summary>
-        public ICommand ShowDashboardCommand => new RelayCommand(_ =>
+        public ICommand ShowDashboardCommand => new RelayCommand(async _ =>
         {
-            _mainWindowNavigationService.NavigateToDashboard();
+            await _mainWindowNavigationService.NavigateToDashboardAsync();
             OnPropertyChanged(nameof(CurrentView));
         });
     }

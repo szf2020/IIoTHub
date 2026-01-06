@@ -1,4 +1,6 @@
-﻿using IIoTHub.Application.Interfaces;
+﻿using IIoTHub.Application.Enums;
+using IIoTHub.Application.Interfaces;
+using IIoTHub.Application.Models;
 using IIoTHub.Domain.Interfaces.Repositories;
 using IIoTHub.Domain.Models.DeviceSettings;
 
@@ -16,7 +18,7 @@ namespace IIoTHub.Application.Services
         /// <summary>
         /// 設備設定變更事件
         /// </summary>
-        public event EventHandler DeviceSettingChanged;
+        public event EventHandler<DeviceSettingChangedEventArgs> DeviceSettingChanged;
 
         /// <summary>
         /// 新增設備設定
@@ -25,7 +27,8 @@ namespace IIoTHub.Application.Services
         public async Task AddAsync(DeviceSetting deviceSetting)
         {
             await _deviceSettingRepository.AddAsync(deviceSetting);
-            DeviceSettingChanged?.Invoke(this, new EventArgs());
+            var eventArgs = new DeviceSettingChangedEventArgs(DeviceSettingChangeType.Added, deviceSetting);
+            DeviceSettingChanged?.Invoke(this, eventArgs);
         }
 
         /// <summary>
@@ -35,7 +38,8 @@ namespace IIoTHub.Application.Services
         public async Task UpdateAsync(DeviceSetting deviceSetting)
         {
             await _deviceSettingRepository.UpdateAsync(deviceSetting);
-            DeviceSettingChanged?.Invoke(this, new EventArgs());
+            var eventArgs = new DeviceSettingChangedEventArgs(DeviceSettingChangeType.Updated, deviceSetting);
+            DeviceSettingChanged?.Invoke(this, eventArgs);
         }
 
         /// <summary>
@@ -44,8 +48,13 @@ namespace IIoTHub.Application.Services
         /// <param name="id"></param>
         public async Task DeleteAsync(Guid id)
         {
-            await _deviceSettingRepository.DeleteAsync(id);
-            DeviceSettingChanged?.Invoke(this, new EventArgs());
+            var deviceSetting = await _deviceSettingRepository.GetByIdAsync(id);
+            if (deviceSetting != null)
+            {
+                await _deviceSettingRepository.DeleteAsync(id);
+                var eventArgs = new DeviceSettingChangedEventArgs(DeviceSettingChangeType.Deleted, deviceSetting);
+                DeviceSettingChanged?.Invoke(this, eventArgs);
+            }
         }
 
         /// <summary>

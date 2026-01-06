@@ -1,6 +1,7 @@
 ﻿using IIoTHub.Domain.Interfaces.Repositories;
 using IIoTHub.Domain.Models.DeviceMonitor;
 using Newtonsoft.Json;
+using System.Collections.Immutable;
 using System.IO;
 
 namespace IIoTHub.Infrastructure.Repositories
@@ -9,6 +10,7 @@ namespace IIoTHub.Infrastructure.Repositories
     {
         private readonly string _filePath = "deviceMonitorStatuses.json";
         private static readonly SemaphoreSlim _fileLock = new(1, 1);
+        private ImmutableList<DeviceMonitorStatus> _cache;
 
         /// <summary>
         /// 新增一筆設備監控狀態
@@ -20,16 +22,9 @@ namespace IIoTHub.Infrastructure.Repositories
             await _fileLock.WaitAsync();
             try
             {
-                var deviceMonitorStatuses = new List<DeviceMonitorStatus>();
-                if (File.Exists(_filePath))
-                {
-                    var json = await File.ReadAllTextAsync(_filePath);
-                    deviceMonitorStatuses = JsonConvert.DeserializeObject<List<DeviceMonitorStatus>>(json) ?? [];
-                }
-
+                var deviceMonitorStatuses = await LoadAllAndUpdateCacheInternalAsync();
                 deviceMonitorStatuses.Add(deviceMonitorStatus);
-                var output = JsonConvert.SerializeObject(deviceMonitorStatuses, Formatting.Indented);
-                await File.WriteAllTextAsync(_filePath, output);
+                await SaveAllAndUpdateCacheInternalAsync(deviceMonitorStatuses);
             }
             finally
             {
@@ -47,12 +42,7 @@ namespace IIoTHub.Infrastructure.Repositories
             await _fileLock.WaitAsync();
             try
             {
-                var deviceMonitorStatuses = new List<DeviceMonitorStatus>();
-                if (File.Exists(_filePath))
-                {
-                    var json = await File.ReadAllTextAsync(_filePath);
-                    deviceMonitorStatuses = JsonConvert.DeserializeObject<List<DeviceMonitorStatus>>(json) ?? [];
-                }
+                var deviceMonitorStatuses = await LoadAllAndUpdateCacheInternalAsync();
 
                 var updateIndex = deviceMonitorStatuses.FindIndex(e => e.Id == deviceMonitorStatus.Id);
                 if (updateIndex >= 0)
@@ -63,8 +53,8 @@ namespace IIoTHub.Infrastructure.Repositories
                 {
                     deviceMonitorStatuses.Add(deviceMonitorStatus);
                 }
-                var output = JsonConvert.SerializeObject(deviceMonitorStatuses, Formatting.Indented);
-                await File.WriteAllTextAsync(_filePath, output);
+
+                await SaveAllAndUpdateCacheInternalAsync(deviceMonitorStatuses);
             }
             finally
             {
@@ -82,16 +72,9 @@ namespace IIoTHub.Infrastructure.Repositories
             await _fileLock.WaitAsync();
             try
             {
-                var deviceMonitorStatuses = new List<DeviceMonitorStatus>();
-                if (File.Exists(_filePath))
-                {
-                    var json = await File.ReadAllTextAsync(_filePath);
-                    deviceMonitorStatuses = JsonConvert.DeserializeObject<List<DeviceMonitorStatus>>(json) ?? [];
-                }
-
+                var deviceMonitorStatuses = await LoadAllAndUpdateCacheInternalAsync();
                 deviceMonitorStatuses.RemoveAll(e => e.Id == id);
-                var output = JsonConvert.SerializeObject(deviceMonitorStatuses, Formatting.Indented);
-                await File.WriteAllTextAsync(_filePath, output);
+                await SaveAllAndUpdateCacheInternalAsync(deviceMonitorStatuses);
             }
             finally
             {
@@ -105,12 +88,16 @@ namespace IIoTHub.Infrastructure.Repositories
         /// <returns></returns>
         public async Task<IEnumerable<DeviceMonitorStatus>> GetAllAsync()
         {
+            if (_cache != null)
+                return _cache.AsEnumerable();
+
             await _fileLock.WaitAsync();
             try
             {
-                if (!File.Exists(_filePath)) return [];
-                var json = await File.ReadAllTextAsync(_filePath);
-                return JsonConvert.DeserializeObject<List<DeviceMonitorStatus>>(json) ?? [];
+                if (_cache == null) // double check
+                    await LoadAllAndUpdateCacheInternalAsync();
+
+                return _cache;
             }
             finally
             {
@@ -125,8 +112,46 @@ namespace IIoTHub.Infrastructure.Repositories
         /// <returns></returns>
         public async Task<DeviceMonitorStatus> GetByIdAsync(Guid id)
         {
-            var devices = await GetAllAsync();
-            return devices.FirstOrDefault(device => device.Id == id);
+            var deviceMonitorStatuses = await GetAllAsync();
+            return deviceMonitorStatuses.FirstOrDefault(d => d.Id == id);
+        }
+
+        /// <summary>
+        /// 從檔案載入所有設備監控狀態，並更新快取
+        /// </summary>
+        private async Task<List<DeviceMonitorStatus>> LoadAllAndUpdateCacheInternalAsync()
+        {
+            if (!File.Exists(_filePath))
+            {
+                UpdateCache([]);
+                return [];
+            }
+
+            var json = await File.ReadAllTextAsync(_filePath);
+            var deviceMonitorStatuses = JsonConvert.DeserializeObject<List<DeviceMonitorStatus>>(json) ?? [];
+
+            UpdateCache(deviceMonitorStatuses);
+
+            return deviceMonitorStatuses;
+        }
+
+        /// <summary>
+        /// 將所有設備監控狀態寫回檔案，並更新快取
+        /// </summary>
+        private async Task SaveAllAndUpdateCacheInternalAsync(List<DeviceMonitorStatus> deviceMonitorStatuses)
+        {
+            var json = JsonConvert.SerializeObject(deviceMonitorStatuses, Formatting.Indented);
+            await File.WriteAllTextAsync(_filePath, json);
+
+            UpdateCache(deviceMonitorStatuses);
+        }
+
+        /// <summary>
+        /// 更新快取
+        /// </summary>
+        private void UpdateCache(List<DeviceMonitorStatus> deviceMonitorStatuses)
+        {
+            _cache = deviceMonitorStatuses.ToImmutableList();
         }
     }
 }

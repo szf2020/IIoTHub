@@ -1,4 +1,5 @@
-﻿using IIoTHub.Application.Interfaces;
+﻿using IIoTHub.Application.Enums;
+using IIoTHub.Application.Interfaces;
 using IIoTHub.Application.Models;
 using IIoTHub.Domain.Enums;
 using IIoTHub.Domain.Interfaces.Repositories;
@@ -33,9 +34,9 @@ namespace IIoTHub.Application.Services
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
-        public async Task StartMonitor(Guid id)
+        public async Task StartMonitorAsync(Guid id)
         {
-            // 持久化
+            // 更新監控狀態 (持久化)
             var status = await _deviceMonitorStatusRepository.GetByIdAsync(id) ?? new DeviceMonitorStatus(id);
             status.IsMonitoring = true;
             await _deviceMonitorStatusRepository.UpdateAsync(status);
@@ -73,13 +74,24 @@ namespace IIoTHub.Application.Services
         /// 停止指定設備的監控
         /// </summary>
         /// <param name="id"></param>
+        /// <param name="reason"></param>
         /// <returns></returns>
-        public async Task StopMonitor(Guid id)
+        public async Task StopMonitorAsync(Guid id, StopMonitorReason reason)
         {
-            // 更新監控狀態
-            var status = await _deviceMonitorStatusRepository.GetByIdAsync(id) ?? new DeviceMonitorStatus(id);
-            status.IsMonitoring = false;
-            await _deviceMonitorStatusRepository.UpdateAsync(status);
+            // 更新監控狀態 (持久化)
+            switch (reason)
+            {
+                case StopMonitorReason.Temporary:
+                    var status = await _deviceMonitorStatusRepository.GetByIdAsync(id) ?? new DeviceMonitorStatus(id);
+                    status.IsMonitoring = false;
+                    await _deviceMonitorStatusRepository.UpdateAsync(status);
+                    break;
+                case StopMonitorReason.Removed:
+                    await _deviceMonitorStatusRepository.DeleteAsync(id);
+                    break;
+                default:
+                    break;
+            }
 
             // 關閉監控
             if (_timers.TryGetValue(id, out var timer))
@@ -109,7 +121,7 @@ namespace IIoTHub.Application.Services
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
-        public async Task<bool> IsMonitoring(Guid id)
+        public async Task<bool> IsMonitoringAsync(Guid id)
             => (await _deviceMonitorStatusRepository.GetByIdAsync(id))?.IsMonitoring ?? false;
 
         /// <summary>

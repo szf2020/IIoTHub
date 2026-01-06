@@ -7,10 +7,12 @@ namespace IIoTHub.App.Wpf.Services
 {
     public class MainWindowNavigationService : IMainWindowNavigationService
     {
-        private object _currentView;
         private readonly IDialogService _dialogService;
         private readonly IDeviceSettingService _deviceSettingService;
         private readonly IDeviceMonitorService _deviceMonitorService;
+
+        private object _currentView;
+        private DashboardView _dashboardView;
 
         public MainWindowNavigationService(IDialogService dialogService,
                                            IDeviceSettingService deviceSettingService,
@@ -29,9 +31,15 @@ namespace IIoTHub.App.Wpf.Services
         /// <summary>
         /// 導覽到 Dashboard 視圖
         /// </summary>
-        public void NavigateToDashboard()
+        public async Task NavigateToDashboardAsync()
         {
-            _currentView = new DashboardView(new DashboardViewModel(_dialogService, _deviceSettingService, _deviceMonitorService));
+            if (_dashboardView == null)
+            {
+                var dashboardViewModel = await DashboardViewModel.CreateAsync(_dialogService, _deviceSettingService, _deviceMonitorService);
+                _dashboardView = new DashboardView(dashboardViewModel);
+            }
+
+            _currentView = _dashboardView;
         }
     }
 }

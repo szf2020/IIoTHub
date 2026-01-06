@@ -1,6 +1,7 @@
 ﻿using IIoTHub.Domain.Interfaces.Repositories;
 using IIoTHub.Domain.Models.DeviceSettings;
 using Newtonsoft.Json;
+using System.Collections.Immutable;
 using System.IO;
 
 namespace IIoTHub.Infrastructure.Repositories
@@ -9,6 +10,7 @@ namespace IIoTHub.Infrastructure.Repositories
     {
         private readonly string _filePath = "deviceSettings.json";
         private static readonly SemaphoreSlim _fileLock = new(1, 1);
+        private ImmutableList<DeviceSetting> _cache;
 
         /// <summary>
         /// 新增一筆設備設定
@@ -20,16 +22,9 @@ namespace IIoTHub.Infrastructure.Repositories
             await _fileLock.WaitAsync();
             try
             {
-                var deviceSettings = new List<DeviceSetting>();
-                if (File.Exists(_filePath))
-                {
-                    var json = await File.ReadAllTextAsync(_filePath);
-                    deviceSettings = JsonConvert.DeserializeObject<List<DeviceSetting>>(json) ?? [];
-                }
-
+                var deviceSettings = await LoadAllAndUpdateCacheInternalAsync();
                 deviceSettings.Add(deviceSetting);
-                var output = JsonConvert.SerializeObject(deviceSettings, Formatting.Indented);
-                await File.WriteAllTextAsync(_filePath, output);
+                await SaveAllAndUpdateCacheInternalAsync(deviceSettings);
             }
             finally
             {
@@ -47,12 +42,7 @@ namespace IIoTHub.Infrastructure.Repositories
             await _fileLock.WaitAsync();
             try
             {
-                var deviceSettings = new List<DeviceSetting>();
-                if (File.Exists(_filePath))
-                {
-                    var json = await File.ReadAllTextAsync(_filePath);
-                    deviceSettings = JsonConvert.DeserializeObject<List<DeviceSetting>>(json) ?? [];
-                }
+                var deviceSettings = await LoadAllAndUpdateCacheInternalAsync();
 
                 var updateIndex = deviceSettings.FindIndex(e => e.Id == deviceSetting.Id);
                 if (updateIndex >= 0)
@@ -63,8 +53,8 @@ namespace IIoTHub.Infrastructure.Repositories
                 {
                     deviceSettings.Add(deviceSetting);
                 }
-                var output = JsonConvert.SerializeObject(deviceSettings, Formatting.Indented);
-                await File.WriteAllTextAsync(_filePath, output);
+
+                await SaveAllAndUpdateCacheInternalAsync(deviceSettings);
             }
             finally
             {
@@ -82,16 +72,9 @@ namespace IIoTHub.Infrastructure.Repositories
             await _fileLock.WaitAsync();
             try
             {
-                var deviceSettings = new List<DeviceSetting>();
-                if (File.Exists(_filePath))
-                {
-                    var json = await File.ReadAllTextAsync(_filePath);
-                    deviceSettings = JsonConvert.DeserializeObject<List<DeviceSetting>>(json) ?? [];
-                }
-
+                var deviceSettings = await LoadAllAndUpdateCacheInternalAsync();
                 deviceSettings.RemoveAll(e => e.Id == id);
-                var output = JsonConvert.SerializeObject(deviceSettings, Formatting.Indented);
-                await File.WriteAllTextAsync(_filePath, output);
+                await SaveAllAndUpdateCacheInternalAsync(deviceSettings);
             }
             finally
             {
@@ -105,12 +88,16 @@ namespace IIoTHub.Infrastructure.Repositories
         /// <returns></returns>
         public async Task<IEnumerable<DeviceSetting>> GetAllAsync()
         {
+            if (_cache != null)
+                return _cache.AsEnumerable();
+
             await _fileLock.WaitAsync();
             try
             {
-                if (!File.Exists(_filePath)) return [];
-                var json = await File.ReadAllTextAsync(_filePath);
-                return JsonConvert.DeserializeObject<List<DeviceSetting>>(json) ?? [];
+                if (_cache == null) // double check
+                    await LoadAllAndUpdateCacheInternalAsync();
+
+                return _cache;
             }
             finally
             {
@@ -125,8 +112,46 @@ namespace IIoTHub.Infrastructure.Repositories
         /// <returns></returns>
         public async Task<DeviceSetting> GetByIdAsync(Guid id)
         {
-            var devices = await GetAllAsync();
-            return devices.FirstOrDefault(device => device.Id == id);
+            var deviceSettings = await GetAllAsync();
+            return deviceSettings.FirstOrDefault(d => d.Id == id);
+        }
+
+        /// <summary>
+        /// 從檔案載入所有設備設定，並更新快取
+        /// </summary>
+        private async Task<List<DeviceSetting>> LoadAllAndUpdateCacheInternalAsync()
+        {
+            if (!File.Exists(_filePath))
+            {
+                UpdateCache([]);
+                return [];
+            }
+
+            var json = await File.ReadAllTextAsync(_filePath);
+            var deviceSettings = JsonConvert.DeserializeObject<List<DeviceSetting>>(json) ?? [];
+
+            UpdateCache(deviceSettings);
+
+            return deviceSettings;
+        }
+
+        /// <summary>
+        /// 將所有設備設定寫回檔案，並更新快取
+        /// </summary>
+        private async Task SaveAllAndUpdateCacheInternalAsync(List<DeviceSetting> deviceSettings)
+        {
+            var json = JsonConvert.SerializeObject(deviceSettings, Formatting.Indented);
+            await File.WriteAllTextAsync(_filePath, json);
+
+            UpdateCache(deviceSettings);
+        }
+
+        /// <summary>
+        /// 更新快取
+        /// </summary>
+        private void UpdateCache(List<DeviceSetting> deviceSettings)
+        {
+            _cache = deviceSettings.ToImmutableList();
         }
     }
 }

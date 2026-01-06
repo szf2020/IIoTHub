@@ -1,11 +1,14 @@
 ﻿using IIoTHub.App.Wpf.Interfaces;
 using IIoTHub.App.Wpf.Services;
+using IIoTHub.Application.Enums;
 using IIoTHub.Application.Interfaces;
+using IIoTHub.Application.Models;
 using IIoTHub.Domain.Enums;
 using IIoTHub.Domain.Models.DeviceSettings;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using System.Xml.Linq;
 
 namespace IIoTHub.App.Wpf.ViewModels.MainWindow
 {
@@ -18,24 +21,38 @@ namespace IIoTHub.App.Wpf.ViewModels.MainWindow
         private readonly IDeviceSettingService _deviceSettingService;
         private readonly IDeviceMonitorService _deviceMonitorService;
 
-        public DashboardViewModel(IDialogService dialogService,
-                                  IDeviceSettingService deviceSettingService,
-                                  IDeviceMonitorService deviceMonitorService)
+        private readonly SemaphoreSlim _deviceSettingChangedLock = new(1, 1);
+
+        private DashboardViewModel(IDialogService dialogService,
+                                   IDeviceSettingService deviceSettingService,
+                                   IDeviceMonitorService deviceMonitorService)
         {
             _dialogService = dialogService;
             _deviceSettingService = deviceSettingService;
             _deviceMonitorService = deviceMonitorService;
-            _deviceSettingService.DeviceSettingChanged += async (s, e) => { await LoadAsync(); };
-            _ = LoadAsync();
+            _deviceSettingService.DeviceSettingChanged += (s, e) => _ = OnDeviceSettingChangedAsync(s, e);
         }
 
         /// <summary>
-        /// 監控的設備列表
+        /// 建立 DashboardViewModel
         /// </summary>
-        public ObservableCollection<DeviceViewModel> Devices { get; set; } = [];
+        /// <param name="dialogService"></param>
+        /// <param name="deviceSettingService"></param>
+        /// <param name="deviceMonitorService"></param>
+        /// <returns></returns>
+        public static async Task<DashboardViewModel> CreateAsync(IDialogService dialogService,
+                                                                 IDeviceSettingService deviceSettingService,
+                                                                 IDeviceMonitorService deviceMonitorService)
+        {
+            var dashboardViewModel = new DashboardViewModel(dialogService,
+                                                            deviceSettingService,
+                                                            deviceMonitorService);
+            await dashboardViewModel.InitializeAsync();
+            return dashboardViewModel;
+        }
 
         /// <summary>
-        /// 包含新增按鈕的設備列表，用於 ItemsControl 顯示
+        /// 包含新增按鈕的設備列表
         /// </summary>
         public ObservableCollection<object> DevicesWithAddButton { get; } = [];
 
@@ -43,67 +60,119 @@ namespace IIoTHub.App.Wpf.ViewModels.MainWindow
         /// 平均稼動率，只計算正在監控的設備
         /// </summary>
         public double AverageUtilization
-            => Devices.Where(device => device.IsMonitoring)
-                      .Select(device => device.Utilization)
-                      .DefaultIfEmpty(0)
-                      .Average();
+            => DevicesWithAddButton.OfType<DeviceViewModel>()
+                .Where(device => device.IsMonitoring)
+                .Select(device => device.Utilization)
+                .DefaultIfEmpty(0)
+                .Average();
 
         /// <summary>
         /// 設備數量
         /// </summary>
-        public int DeviceCount => Devices.Count;
+        public int DeviceCount
+            => DevicesWithAddButton.OfType<DeviceViewModel>().Count();
 
         /// <summary>
         /// 待機設備數量
         /// </summary>
         public int StandbyDeviceCount
-            => Devices.Count(device => device.Status == DeviceRunStatus.Standby);
+            => DevicesWithAddButton.OfType<DeviceViewModel>()
+                .Count(device => device.Status == DeviceRunStatus.Standby);
 
         /// <summary>
         /// 運轉設備數量
         /// </summary>
         public int RunDeviceCount
-            => Devices.Count(device => device.Status == DeviceRunStatus.Running);
+            => DevicesWithAddButton.OfType<DeviceViewModel>()
+                .Count(device => device.Status == DeviceRunStatus.Running);
 
         /// <summary>
         /// 警報設備數量
         /// </summary>
         public int AlarmDeviceCount
-            => Devices.Count(device => device.Status == DeviceRunStatus.Alarm);
+            => DevicesWithAddButton.OfType<DeviceViewModel>()
+                .Count(device => device.Status == DeviceRunStatus.Alarm);
 
         /// <summary>
         /// 離線設備數量
         /// </summary>
         public int OfflineDeviceCount
-            => Devices.Count(device => device.Status == DeviceRunStatus.Offline);
+            => DevicesWithAddButton.OfType<DeviceViewModel>()
+                .Count(device => device.Status == DeviceRunStatus.Offline);
 
         /// <summary>
-        /// 載入設備列表與初始化監控卡片
+        /// 初始化
         /// </summary>
         /// <returns></returns>
-        private async Task LoadAsync()
+        private async Task InitializeAsync()
         {
             var deviceSettings = await _deviceSettingService.GetAllAsync();
-            var devices = deviceSettings.Select(setting
-                => new DeviceViewModel(_dialogService,
-                                       _deviceSettingService,
-                                       _deviceMonitorService,
-                                       setting,
-                                       () => RefreshSummary()));
-            Devices.Clear();
-            foreach (var device in devices)
-            {
-                Devices.Add(device);
-            }
+            var deviceTasks = deviceSettings.Select(
+                async setting => await DeviceViewModel.CreateAsync(
+                    _dialogService,
+                    _deviceSettingService,
+                    _deviceMonitorService,
+                    setting,
+                    () => RefreshSummary()));
+            var devices = await Task.WhenAll(deviceTasks);
 
             DevicesWithAddButton.Clear();
-            foreach (var device in Devices)
+            foreach (var device in devices)
             {
                 DevicesWithAddButton.Add(device);
             }
             DevicesWithAddButton.Add(new DevicePlaceholderViewModel(_dialogService));
 
             RefreshSummary();
+        }
+
+        /// <summary>
+        /// 處理設備設定變更事件
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async Task OnDeviceSettingChangedAsync(object sender, DeviceSettingChangedEventArgs e)
+        {
+            await _deviceSettingChangedLock.WaitAsync();
+            try
+            {
+                var device = DevicesWithAddButton
+                    .OfType<DeviceViewModel>()
+                    .FirstOrDefault(device => device.DeviceSetting.Id == e.DeviceSetting.Id);
+
+                switch (e.ChangeType)
+                {
+                    case DeviceSettingChangeType.Added:
+                        if (device == null)
+                        {
+                            var index = DevicesWithAddButton.Count - 1;
+                            var deviceViewModel = await DeviceViewModel.CreateAsync(
+                                _dialogService,
+                                _deviceSettingService,
+                                _deviceMonitorService,
+                                e.DeviceSetting,
+                                () => RefreshSummary());
+                            DevicesWithAddButton.Insert(index, deviceViewModel);
+                        }
+                        break;
+                    case DeviceSettingChangeType.Updated:
+                        device?.UpdateDeviceSetting(e.DeviceSetting);
+                        break;
+                    case DeviceSettingChangeType.Deleted:
+                        if (device != null)
+                        {
+                            var index = DevicesWithAddButton.IndexOf(device);
+                            DevicesWithAddButton.RemoveAt(index);
+                        }
+                        break;
+                }
+
+                RefreshSummary();
+            }
+            finally
+            {
+                _deviceSettingChangedLock.Release();
+            }
         }
 
         /// <summary>
@@ -128,38 +197,93 @@ namespace IIoTHub.App.Wpf.ViewModels.MainWindow
         private readonly IDialogService _dialogService;
         private readonly IDeviceSettingService _deviceService;
         private readonly IDeviceMonitorService _deviceMonitorService;
-        private readonly DeviceSetting _deviceSetting;
         private readonly Action _snapshotUpdatedAction;
 
+        private DeviceSetting _deviceSetting;
+
+        private IDisposable _subscriptionDisposable;
         private bool _isMonitoring = false;
         private DeviceRunStatus _status = DeviceRunStatus.Offline;
         private double _utilization = 0;
 
-        public DeviceViewModel(IDialogService dialogService,
-                               IDeviceSettingService deviceService,
-                               IDeviceMonitorService deviceMonitorService,
-                               DeviceSetting deviceSetting,
-                               Action snapshotUpdatedAction)
+        private DeviceViewModel(IDialogService dialogService,
+                                IDeviceSettingService deviceService,
+                                IDeviceMonitorService deviceMonitorService,
+                                DeviceSetting deviceSetting,
+                                Action snapshotUpdatedAction)
         {
             _dialogService = dialogService;
             _deviceService = deviceService;
             _deviceMonitorService = deviceMonitorService;
-            _deviceSetting = deviceSetting;
             _snapshotUpdatedAction = snapshotUpdatedAction;
+
+            _deviceSetting = deviceSetting;
 
             MonitorCommand = new RelayCommand(async _ => await MonitorDevice());
             ViewCommand = new RelayCommand(_ => ShowDevice());
             EditCommand = new RelayCommand(_ => EditDevice());
             CopyCommand = new RelayCommand(async _ => await CopyDevice());
             DeleteCommand = new RelayCommand(async _ => await DeleteDevice());
+        }
 
-            _ = InitializeAsync();
+        /// <summary>
+        /// 建立 DeviceViewModel
+        /// </summary>
+        /// <param name="dialogService"></param>
+        /// <param name="deviceService"></param>
+        /// <param name="deviceMonitorService"></param>
+        /// <param name="deviceSetting"></param>
+        /// <param name="snapshotUpdatedAction"></param>
+        /// <returns></returns>
+        public static async Task<DeviceViewModel> CreateAsync(IDialogService dialogService,
+                                                              IDeviceSettingService deviceService,
+                                                              IDeviceMonitorService deviceMonitorService,
+                                                              DeviceSetting deviceSetting,
+                                                              Action snapshotUpdatedAction)
+        {
+            var deviceViewModel = new DeviceViewModel(dialogService,
+                                                      deviceService,
+                                                      deviceMonitorService,
+                                                      deviceSetting,
+                                                      snapshotUpdatedAction);
+            await deviceViewModel.InitializeAsync();
+            return deviceViewModel;
         }
 
         /// <summary>
         /// 對應的設備設定資料
         /// </summary>
-        public DeviceSetting DeviceSetting => _deviceSetting;
+        public DeviceSetting DeviceSetting
+        {
+            get => _deviceSetting;
+            private set
+            {
+                if (_deviceSetting == value)
+                    return;
+
+                _deviceSetting = value;
+                OnPropertyChanged(nameof(DeviceSetting));
+                RefreshDeviceSettingDerivedProperties();
+            }
+        }
+
+        /// <summary>
+        /// 更新設備設定資料
+        /// </summary>
+        /// <param name="newSetting"></param>
+        public void UpdateDeviceSetting(DeviceSetting newSetting)
+        {
+            DeviceSetting = newSetting;
+        }
+
+        /// <summary>
+        /// 刷新所有依賴 DeviceSetting 的衍生屬性
+        /// </summary>
+        private void RefreshDeviceSettingDerivedProperties()
+        {
+            OnPropertyChanged(nameof(Name));
+            OnPropertyChanged(nameof(ImageSource));
+        }
 
         /// <summary>
         /// 設備名稱
@@ -253,8 +377,8 @@ namespace IIoTHub.App.Wpf.ViewModels.MainWindow
         /// <returns></returns>
         private async Task InitializeAsync()
         {
-            // 添加快照訂閱
-            _deviceMonitorService.Subscribe(_deviceSetting.Id, snapshot =>
+            // 訂閱設備快照更新
+            _subscriptionDisposable = _deviceMonitorService.Subscribe(_deviceSetting.Id, snapshot =>
             {
                 Status = snapshot.RunStatus;
                 Utilization = snapshot.Utilization;
@@ -262,13 +386,13 @@ namespace IIoTHub.App.Wpf.ViewModels.MainWindow
                 _snapshotUpdatedAction();
             });
 
-            // 同步狀態
-            IsMonitoring = await _deviceMonitorService.IsMonitoring(DeviceSetting.Id);
+            // 同步監控狀態
+            IsMonitoring = await _deviceMonitorService.IsMonitoringAsync(DeviceSetting.Id);
 
-            // 若本來就是監控中，明確啟動
+            // 若本來已監控，則啟動監控
             if (IsMonitoring)
             {
-                await _deviceMonitorService.StartMonitor(DeviceSetting.Id);
+                await _deviceMonitorService.StartMonitorAsync(DeviceSetting.Id);
             }
         }
 
@@ -280,14 +404,11 @@ namespace IIoTHub.App.Wpf.ViewModels.MainWindow
         {
             if (IsMonitoring)
             {
-                await _deviceMonitorService.StartMonitor(DeviceSetting.Id);
+                await _deviceMonitorService.StartMonitorAsync(DeviceSetting.Id);
             }
             else
             {
-                await _deviceMonitorService.StopMonitor(DeviceSetting.Id);
-
-
-                Status = DeviceRunStatus.Offline;
+                await _deviceMonitorService.StopMonitorAsync(DeviceSetting.Id, StopMonitorReason.Temporary);
             }
         }
 
@@ -364,9 +485,15 @@ namespace IIoTHub.App.Wpf.ViewModels.MainWindow
             if (!confirm)
                 return; // 使用者取消刪除
 
+            // 停止監控
             IsMonitoring = false;
-            await _deviceMonitorService.StopMonitor(DeviceSetting.Id);
+            await _deviceMonitorService.StopMonitorAsync(DeviceSetting.Id, StopMonitorReason.Removed);
+
+            // 刪除設備設定
             await _deviceService.DeleteAsync(DeviceSetting.Id);
+
+            // 取消快照訂閱
+            _subscriptionDisposable?.Dispose();
         }
     }
 

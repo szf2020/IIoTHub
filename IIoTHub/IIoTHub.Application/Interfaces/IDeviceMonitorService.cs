@@ -1,4 +1,5 @@
-﻿using IIoTHub.Application.Models;
+﻿using IIoTHub.Application.Enums;
+using IIoTHub.Application.Models;
 
 namespace IIoTHub.Application.Interfaces
 {
@@ -12,20 +13,22 @@ namespace IIoTHub.Application.Interfaces
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
-        Task StartMonitor(Guid id);
+        Task StartMonitorAsync(Guid id);
 
         /// <summary>
         /// 停止指定設備的監控
         /// </summary>
         /// <param name="id"></param>
-        Task StopMonitor(Guid id);
+        /// <param name="reason"></param>
+        /// <returns></returns>
+        Task StopMonitorAsync(Guid id, StopMonitorReason reason);
 
         /// <summary>
         /// 檢查指定設備是否正在監控中
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
-        Task<bool> IsMonitoring(Guid id);
+        Task<bool> IsMonitoringAsync(Guid id);
 
         /// <summary>
         /// 訂閱指定設備的快照更新事件
