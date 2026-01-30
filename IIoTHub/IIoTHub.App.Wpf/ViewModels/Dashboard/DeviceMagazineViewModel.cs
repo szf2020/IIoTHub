@@ -19,7 +19,8 @@ namespace IIoTHub.App.Wpf.ViewModels.Dashboard
         private readonly Action _snapshotUpdatedAction;
         private readonly Action<DeviceViewModelBase> _showDetailAction;
 
-        private IDisposable _subscriptionDisposable;
+        private IDisposable _deviceRuntimeSummarySubscriptionDisposable;
+        private IDisposable _deviceSnapshotSubscriptionDisposable;
 
         private DeviceMagazineViewModel(IDialogService dialogService,
                                         IDeviceSettingService deviceService,
@@ -82,13 +83,13 @@ namespace IIoTHub.App.Wpf.ViewModels.Dashboard
             await base.InitializeAsync();
 
             // 訂閱設備運轉統計摘要變化事件
-            _deviceRuntimeStatisticsService.DeviceRuntimeSummaryChanged += (s, e) =>
+            _deviceRuntimeSummarySubscriptionDisposable = _deviceRuntimeStatisticsService.SubscribeRuntimeSummary(_deviceSetting.Id, runtimeSummary =>
             {
-                Utilization = e.DeviceRuntimeSummary.RunningUtilization;
-            };
+                Utilization = runtimeSummary.RunningUtilization;
+            });
 
             // 訂閱設備快照更新
-            _subscriptionDisposable = _deviceSnapshotPublisher.Subscribe<MagazineSnapshot>(_deviceSetting.Id, snapshot =>
+            _deviceSnapshotSubscriptionDisposable = _deviceSnapshotPublisher.Subscribe<MagazineSnapshot>(_deviceSetting.Id, snapshot =>
             {
                 Status = snapshot.RunStatus;
                 _snapshotUpdatedAction();
@@ -111,8 +112,10 @@ namespace IIoTHub.App.Wpf.ViewModels.Dashboard
         {
             await base.DeleteDevice();
 
+            // 取消運轉統計摘要訂閱
+            _deviceRuntimeSummarySubscriptionDisposable?.Dispose();
             // 取消快照訂閱
-            _subscriptionDisposable?.Dispose();
+            _deviceSnapshotSubscriptionDisposable?.Dispose();
         }
     }
 }

@@ -3,22 +3,6 @@
 namespace IIoTHub.Application.Models
 {
     /// <summary>
-    /// 設備運轉統計摘變化事件的事件參數
-    /// </summary>
-    public class DeviceRuntimeSummaryChangedEventArgs : EventArgs
-    {
-        public DeviceRuntimeSummaryChangedEventArgs(DeviceRuntimeSummary deviceRuntimeSummary)
-        {
-            DeviceRuntimeSummary = deviceRuntimeSummary;
-        }
-
-        /// <summary>
-        /// 變更的設備運轉統計摘要
-        /// </summary>
-        public DeviceRuntimeSummary DeviceRuntimeSummary { get; }
-    }
-
-    /// <summary>
     /// 設備運轉統計摘要
     /// </summary>
     public class DeviceRuntimeSummary

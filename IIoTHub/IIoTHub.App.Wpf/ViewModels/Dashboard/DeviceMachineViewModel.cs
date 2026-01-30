@@ -20,7 +20,8 @@ namespace IIoTHub.App.Wpf.ViewModels.Dashboard
         private readonly Action _snapshotUpdatedAction;
         private readonly Action<DeviceViewModelBase> _showDetailAction;
 
-        private IDisposable _subscriptionDisposable;
+        private IDisposable _deviceRuntimeSummarySubscriptionDisposable;
+        private IDisposable _deviceSnapshotSubscriptionDisposable;
         private string _operatingMode;
         private string _mainProgramName;
         private string _executingProgramName;
@@ -91,6 +92,7 @@ namespace IIoTHub.App.Wpf.ViewModels.Dashboard
             await deviceViewModel.InitializeAsync();
             return deviceViewModel;
         }
+
         /// <summary>
         /// 初始化
         /// </summary>
@@ -100,18 +102,18 @@ namespace IIoTHub.App.Wpf.ViewModels.Dashboard
             await base.InitializeAsync();
 
             // 訂閱設備運轉統計摘要變化事件
-            _deviceRuntimeStatisticsService.DeviceRuntimeSummaryChanged += (s, e) =>
+            _deviceRuntimeSummarySubscriptionDisposable = _deviceRuntimeStatisticsService.SubscribeRuntimeSummary(_deviceSetting.Id, runtimeSummary =>
             {
-                RuntimeRecords = e.DeviceRuntimeSummary.RuntimeRecords;
-                OfflineUtilization = e.DeviceRuntimeSummary.OfflineUtilization;
-                StandbyUtilization = e.DeviceRuntimeSummary.StandbyUtilization;
-                RunningUtilization = e.DeviceRuntimeSummary.RunningUtilization;
-                AlarmUtilization = e.DeviceRuntimeSummary.AlarmUtilization;
-                Utilization = e.DeviceRuntimeSummary.RunningUtilization;
-            };
+                RuntimeRecords = runtimeSummary.RuntimeRecords;
+                OfflineUtilization = runtimeSummary.OfflineUtilization;
+                StandbyUtilization = runtimeSummary.StandbyUtilization;
+                RunningUtilization = runtimeSummary.RunningUtilization;
+                AlarmUtilization = runtimeSummary.AlarmUtilization;
+                Utilization = runtimeSummary.RunningUtilization;
+            });
 
             // 訂閱設備快照更新
-            _subscriptionDisposable = _deviceSnapshotPublisher.Subscribe<MachineSnapshot>(_deviceSetting.Id, snapshot =>
+            _deviceSnapshotSubscriptionDisposable = _deviceSnapshotPublisher.Subscribe<MachineSnapshot>(_deviceSetting.Id, snapshot =>
             {
                 Status = snapshot.RunStatus;
                 OperatingMode = snapshot.OperatingMode;
@@ -438,8 +440,10 @@ namespace IIoTHub.App.Wpf.ViewModels.Dashboard
         {
             await base.DeleteDevice();
 
+            // 取消運轉統計摘要訂閱
+            _deviceRuntimeSummarySubscriptionDisposable?.Dispose();
             // 取消快照訂閱
-            _subscriptionDisposable?.Dispose();
+            _deviceSnapshotSubscriptionDisposable?.Dispose();
         }
     }
 }

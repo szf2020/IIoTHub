@@ -9,11 +9,6 @@ namespace IIoTHub.Application.Interfaces
     public interface IDeviceRuntimeStatisticsService
     {
         /// <summary>
-        /// 設備運轉統計摘要變化事件
-        /// </summary>
-        event EventHandler<DeviceRuntimeSummaryChangedEventArgs> DeviceRuntimeSummaryChanged;
-
-        /// <summary>
         /// 通知服務設備的運轉狀態已發生變化。
         /// 此方法由設備監控服務呼叫。
         /// </summary>
@@ -22,5 +17,13 @@ namespace IIoTHub.Application.Interfaces
         /// <param name="timestamp"></param>
         /// <returns></returns>
         Task OnRuntimeStatusChangedAsync(Guid deviceId, DeviceRunStatus runStatus, DateTime timestamp);
+
+        /// <summary>
+        /// 訂閱指定設備的運轉統計摘要變化
+        /// </summary>
+        /// <param name="deviceId"></param>
+        /// <param name="handler"></param>
+        /// <returns></returns>
+        IDisposable SubscribeRuntimeSummary(Guid deviceId, Action<DeviceRuntimeSummary> handler);
     }
 }
